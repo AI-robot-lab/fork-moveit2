@@ -16,7 +16,7 @@ find_package(rclcpp REQUIRED)
 set(CMAKE_AUTOMOC ON)
 add_definitions(-DQT_NO_KEYWORDS)
 
-qt5_wrap_cpp(MOC_FILES include/moveit_setup_simulation/simulation_widget.hpp)
+qt_wrap_cpp(MOC_FILES include/moveit_setup_simulation/simulation_widget.hpp)
 
 add_library(moveit_setup_simulation src/simulation.cpp
                                     src/simulation_widget.cpp ${MOC_FILES})
@@ -24,8 +24,8 @@ target_include_directories(
   moveit_setup_simulation
   PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
          $<INSTALL_INTERFACE:include/moveit_setup_simulation>)
-ament_target_dependencies(moveit_setup_simulation ament_index_cpp
-                          moveit_setup_framework pluginlib rclcpp)
+target_link_libraries(moveit_setup_simulation ament_index_cpp::ament_index_cpp
+                          moveit_setup_framework::moveit_setup_framework pluginlib::pluginlib rclcpp::rclcpp)
 
 install(DIRECTORY templates DESTINATION share/moveit_setup_simulation)
 
@@ -41,7 +41,7 @@ install(FILES moveit_setup_framework_plugins.xml
         DESTINATION share/moveit_setup_simulation)
 install(DIRECTORY include/ DESTINATION include/moveit_setup_simulation)
 
-ament_export_targets(moveit_setup_simulationTargets HAS_LIBRARY_TARGET)
+target_link_libraries(moveit_setup_simulationTargets )
 pluginlib_export_plugin_description_file(moveit_setup_framework
                                          moveit_setup_framework_plugins.xml)
 
