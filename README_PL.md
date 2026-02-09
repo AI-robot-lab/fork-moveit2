@@ -80,7 +80,7 @@ ros2 launch moveit2_tutorials demo.launch.py
 ### 2. Podstawowy kod Python
 ```python
 import rclpy
-from moveit_py import MoveItPy
+from moveit.planning import MoveItPy
 
 # Inicjalizacja node ROS 2
 rclpy.init()
@@ -99,7 +99,7 @@ plan_result = arm.plan()
 # Wykonanie ruchu
 if plan_result:
     robot_trajectory = plan_result.trajectory
-    moveit.execute(robot_trajectory)
+    moveit.execute(robot_trajectory, controllers=[])
 ```
 
 ## Przydatne zasoby

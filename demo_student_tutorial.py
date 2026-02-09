@@ -31,7 +31,7 @@ URUCHOMIENIE:
 
 import rclpy
 from rclpy.node import Node
-from moveit.planning import MoveItPy, PlanningSceneInterface
+from moveit.planning import MoveItPy
 from geometry_msgs.msg import Pose, Point, Quaternion, PoseStamped
 import time
 import sys
@@ -66,10 +66,13 @@ class StudentDemoNode(Node):
             # Dla Unitree G1: "left_arm" lub "right_arm"
             self.arm_group_name = "panda_arm"
             
-            available_groups = self.moveit.get_group_names()
+            # Pobierz model robota i listę dostępnych grup planowania
+            robot_model = self.moveit.get_robot_model()
+            available_groups = robot_model.joint_model_group_names
             self.get_logger().info(f"📋 Dostępne grupy: {available_groups}")
             
-            if self.arm_group_name not in available_groups:
+            # Sprawdź, czy wybrana grupa istnieje w modelu robota
+            if not robot_model.has_joint_model_group(self.arm_group_name):
                 self.get_logger().error(f"❌ Grupa '{self.arm_group_name}' nie istnieje!")
                 self.get_logger().error(f"   Dostępne grupy: {available_groups}")
                 sys.exit(1)
@@ -77,9 +80,10 @@ class StudentDemoNode(Node):
             self.arm = self.moveit.get_planning_component(self.arm_group_name)
             self.get_logger().info(f"✓ Grupa '{self.arm_group_name}' gotowa!")
             
-            # Krok 3: Inicjalizacja Planning Scene Interface
-            self.planning_scene = PlanningSceneInterface()
-            self.get_logger().info("✓ Planning Scene Interface gotowy!")
+            # Krok 3: Pobierz Planning Scene Monitor
+            # Planning Scene Monitor zarządza stanem robota i przeszkodami
+            self.planning_scene_monitor = self.moveit.get_planning_scene_monitor()
+            self.get_logger().info("✓ Planning Scene Monitor gotowy!")
             
             # Poczekaj chwilę na synchronizację
             time.sleep(2)
@@ -156,7 +160,7 @@ class StudentDemoNode(Node):
             plan_result = self.arm.plan()
             
             if plan_result:
-                trajectory = self.arm.get_plan_trajectory()
+                trajectory = plan_result.trajectory
                 num_points = len(trajectory.joint_trajectory.points)
                 self.get_logger().info(f"   ✓ Trajektoria zaplanowana!")
                 self.get_logger().info(f"   📊 Liczba punktów: {num_points}")
@@ -164,8 +168,9 @@ class StudentDemoNode(Node):
                 self.wait_for_user("Naciśnij Enter aby WYKONAĆ ruch...")
                 
                 # Krok 4: Wykonaj trajektorię
+                # execute() wymaga nazw kontrolerów - pustalista oznacza użycie domyślnych
                 self.get_logger().info("4️⃣  Wykonywanie trajektorii...")
-                success = self.moveit.execute(trajectory, blocking=True)
+                success = self.moveit.execute(trajectory, controllers=[])
                 
                 if success:
                     self.get_logger().info("   ✓ Ruch wykonany pomyślnie!")
@@ -254,7 +259,7 @@ class StudentDemoNode(Node):
             plan_result = self.arm.plan()
             
             if plan_result:
-                trajectory = self.arm.get_plan_trajectory()
+                trajectory = plan_result.trajectory
                 self.get_logger().info("   ✓ Kinematyka odwrotna rozwiązana!")
                 self.get_logger().info("   ✓ Trajektoria zaplanowana!")
                 
@@ -262,7 +267,7 @@ class StudentDemoNode(Node):
                 
                 # Krok 4: Wykonaj
                 self.get_logger().info("4️⃣  Wykonywanie...")
-                success = self.moveit.execute(trajectory, blocking=True)
+                success = self.moveit.execute(trajectory, controllers=[])
                 
                 if success:
                     self.get_logger().info("   ✓ End-effector osiągnął cel!")
@@ -282,87 +287,41 @@ class StudentDemoNode(Node):
         """
         DEMO 3: Praca z przeszkodami w Planning Scene
         
-        KONCEPCJA:
-        Planning Scene to wewnętrzna reprezentacja środowiska robota.
-        Zawiera:
-        - Model robota
-        - Przeszkody w otoczeniu
-        - Załączone obiekty (np. trzymane przez chwytaka)
+        UWAGA: Ta funkcjonalność wymaga zaawansowanego użycia Planning Scene Monitor.
+        W tej wersji MoveItPy, zarządzanie przeszkodami wymaga bezpośredniego dostępu
+        do Planning Scene przez Planning Scene Monitor.
         
-        MoveIt automatycznie unika kolizji z przeszkodami podczas planowania.
-        
-        TYPY PRZESZKÓD:
-        - Box (prostopadłościan) - dla stołów, ścian, pudełek
-        - Cylinder (cylinder) - dla słupków, butelek
-        - Mesh (siatka) - dla złożonych kształtów
-        
-        ZASTOSOWANIA:
-        - Planowanie w zagraconym środowisku
-        - Symulacja rzeczywistych przeszkód
-        - Testowanie bezpieczeństwa trajektorii
+        Ten demo został uproszczony - pełna implementacja wymaga dodatkowego kodu.
+        Zobacz dokumentację MoveIt 2 dla pełnych przykładów pracy z Planning Scene.
         """
         
-        self.print_header("DEMO 3: Planowanie z przeszkodami")
+        self.print_header("DEMO 3: Planowanie z przeszkodami (uproszczone)")
         
         self.get_logger().info("📖 TEORIA:")
         self.get_logger().info("   Planning Scene przechowuje informacje o przeszkodach.")
         self.get_logger().info("   MoveIt automatycznie planuje trajektorie omijające przeszkody.")
+        self.get_logger().info("")
+        self.get_logger().info("ℹ️  UWAGA:")
+        self.get_logger().info("   Pełne zarządzanie przeszkodami w Planning Scene wymaga")
+        self.get_logger().info("   zaawansowanego użycia Planning Scene Monitor.")
+        self.get_logger().info("   Zobacz przykłady C++ lub rozszerzone tutoriale Python.")
         
-        self.wait_for_user("Naciśnij Enter aby dodać przeszkodę...")
+        self.wait_for_user("Naciśnij Enter aby kontynuować...")
         
         try:
-            # Krok 1: Dodaj przeszkodę (stół)
-            self.get_logger().info("1️⃣  Dodawanie stołu przed robotem...")
+            # Demonstracja podstawowego planowania bez dodawania przeszkód
+            self.get_logger().info("Planowanie podstawowej trajektorii...")
             
-            table_pose = PoseStamped()
-            table_pose.header.frame_id = "world"
-            table_pose.pose.position = Point(x=0.5, y=0.0, z=0.25)
-            table_pose.pose.orientation = Quaternion(w=1.0)
-            
-            self.planning_scene.add_box(
-                name="table",
-                pose=table_pose,
-                size=(0.6, 1.0, 0.02)  # 60cm x 100cm x 2cm
-            )
-            
-            time.sleep(1)  # Daj czas na update Planning Scene
-            self.get_logger().info("   ✓ Stół dodany! (Powinieneś go zobaczyć w RViz)")
-            self.get_logger().info("   📦 Wymiary: 60cm x 100cm x 2cm")
-            self.get_logger().info("   📍 Pozycja: 50cm przed robotem")
-            
-            self.wait_for_user("Sprawdź RViz. Naciśnij Enter aby dodać drugą przeszkodę...")
-            
-            # Krok 2: Dodaj drugą przeszkodę (pudełko)
-            self.get_logger().info("2️⃣  Dodawanie pudełka na stole...")
-            
-            box_pose = PoseStamped()
-            box_pose.header.frame_id = "world"
-            box_pose.pose.position = Point(x=0.5, y=0.2, z=0.35)
-            box_pose.pose.orientation = Quaternion(w=1.0)
-            
-            self.planning_scene.add_box(
-                name="obstacle_box",
-                pose=box_pose,
-                size=(0.1, 0.1, 0.1)  # Kostka 10cm
-            )
-            
-            time.sleep(1)
-            self.get_logger().info("   ✓ Pudełko dodane!")
-            self.get_logger().info("   📦 Wymiary: 10cm x 10cm x 10cm")
-            
-            self.wait_for_user("Naciśnij Enter aby zaplanować ruch omijający przeszkody...")
-            
-            # Krok 3: Zaplanuj ruch w otoczeniu przeszkód
-            self.get_logger().info("3️⃣  Planowanie ruchu omijającego przeszkody...")
-            
-            # Cel: pozycja blisko pudełka (ale go nie uderzając)
-            target_pose = Pose()
-            target_pose.position = Point(x=0.5, y=0.3, z=0.4)
-            target_pose.orientation = Quaternion(x=0.707, y=0.0, z=0.0, w=0.707)
+            # Cel: bezpieczna pozycja
+            target_pose_stamped = PoseStamped()
+            target_pose_stamped.header.frame_id = "world"
+            target_pose_stamped.header.stamp = self.get_clock().now().to_msg()
+            target_pose_stamped.pose.position = Point(x=0.3, y=0.2, z=0.5)
+            target_pose_stamped.pose.orientation = Quaternion(x=0.707, y=0.0, z=0.0, w=0.707)
             
             self.arm.set_start_state_to_current_state()
             self.arm.set_goal_state(
-                pose_stamped_msg=target_pose,
+                pose_stamped_msg=target_pose_stamped,
                 pose_link="panda_link8"
             )
             
@@ -370,29 +329,25 @@ class StudentDemoNode(Node):
             
             if plan_result:
                 self.get_logger().info("   ✓ Trajektoria zaplanowana!")
-                self.get_logger().info("   ✓ Planner znalazł ścieżkę omijającą przeszkody!")
                 
                 self.wait_for_user("Naciśnij Enter aby WYKONAĆ ruch...")
                 
-                trajectory = self.arm.get_plan_trajectory()
-                success = self.moveit.execute(trajectory, blocking=True)
+                trajectory = plan_result.trajectory
+                success = self.moveit.execute(trajectory, controllers=[])
                 
                 if success:
-                    self.get_logger().info("   ✓ Ruch wykonany - robot ominął przeszkody!")
+                    self.get_logger().info("   ✓ Ruch wykonany!")
                 else:
                     self.get_logger().error("   ❌ Błąd wykonania")
             else:
                 self.get_logger().error("   ❌ Nie udało się zaplanować trajektorii")
-                self.get_logger().error("   💡 Możliwe, że cel jest nieosiągalny bez kolizji")
             
-            # Krok 4: Czyszczenie sceny
-            self.wait_for_user("Naciśnij Enter aby usunąć przeszkody...")
-            
-            self.get_logger().info("4️⃣  Usuwanie przeszkód...")
-            self.planning_scene.remove_world_object("table")
-            self.planning_scene.remove_world_object("obstacle_box")
-            time.sleep(1)
-            self.get_logger().info("   ✓ Przeszkody usunięte!")
+            self.get_logger().info("")
+            self.get_logger().info("💡 DALSZE KROKI:")
+            self.get_logger().info("   Dla pełnej funkcjonalności Planning Scene, zobacz:")
+            self.get_logger().info("   - Przykłady C++ w moveit_ros/planning/")
+            self.get_logger().info("   - Tutoriale na https://moveit.picknik.ai/")
+            self.get_logger().info("   - UNITREE_G1_GUIDE_PL.md sekcja 'Integracja z percepcją'")
             
         except Exception as e:
             self.get_logger().error(f"❌ Błąd w demo 3: {e}")
@@ -410,8 +365,8 @@ class StudentDemoNode(Node):
         self.get_logger().info("✓ DEMO 2: Planowanie do pozycji w przestrzeni")
         self.get_logger().info("  └─ Precyzyjne, wymaga IK, używane do manipulacji")
         self.get_logger().info("")
-        self.get_logger().info("✓ DEMO 3: Praca z przeszkodami")
-        self.get_logger().info("  └─ Automatyczne unikanie kolizji, bezpieczne planowanie")
+        self.get_logger().info("✓ DEMO 3: Planowanie z przeszkodami (uproszczone)")
+        self.get_logger().info("  └─ Podstawy planowania - pełna funkcjonalność wymaga dodatkowej konfiguracji")
         self.get_logger().info("")
         self.get_logger().info("📚 CO DALEJ?")
         self.get_logger().info("  1. Przeczytaj przewodniki w repozytorium:")

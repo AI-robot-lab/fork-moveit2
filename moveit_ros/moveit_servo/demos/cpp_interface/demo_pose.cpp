@@ -160,10 +160,8 @@ int main(int argc, char* argv[])
   terminal_pose.translate(Eigen::Vector3d(0.0, 0.0, -0.1));  // -10cm w osi Z
 
   // ===== KROK 7: Uruchomienie wątku śledzącego =====
-  // Tworzymy osobny wątek dla pose_tracker.
-  // detach() - wątek działa niezależnie (nie czekamy na join() w tym miejscu)
+  // Tworzymy osobny wątek dla pose_tracker i czekamy na jego zakończenie przy wyjściu z programu.
   std::thread tracker_thread(pose_tracker);
-  tracker_thread.detach();
 
   // ===== KROK 8: Konfiguracja kroków ruchu =====
   // Cel porusza się małymi krokami w każdej iteracji.
@@ -212,6 +210,7 @@ int main(int argc, char* argv[])
   stop_tracking = true;
 
   // Poczekaj na zakończenie wątku śledzącego
+  // Bez detach() możemy bezpiecznie wywołać join()
   if (tracker_thread.joinable())
     tracker_thread.join();
 

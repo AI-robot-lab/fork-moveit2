@@ -296,8 +296,8 @@ def draw_square(side_length=0.1):
     ]
     
     # TODO 2: Dla każdego punktu:
-    # - Utwórz Pose z punktem i stałą orientacją
-    # - Zaplanuj ruch używając compute_cartesian_path()
+    # - Utwórz PoseStamped z punktem i stałą orientacją
+    # - Zaplanuj ruch
     # - Wykonaj trajektorię
     
     orientation = Quaternion(x=0.707, y=0.0, z=0.0, w=0.707)
@@ -305,19 +305,21 @@ def draw_square(side_length=0.1):
     for i, corner in enumerate(corners):
         print(f"Ruch do narożnika {i+1}...")
         
-        target_pose = Pose()
-        target_pose.position = corner
-        target_pose.orientation = orientation
+        target_pose_stamped = PoseStamped()
+        target_pose_stamped.header.frame_id = "panda_link0"
+        target_pose_stamped.header.stamp = moveit.get_node().get_clock().now().to_msg()
+        target_pose_stamped.pose.position = corner
+        target_pose_stamped.pose.orientation = orientation
         
         # Planowanie trajektorii kartezjańskiej
         # compute_cartesian_path generuje gładką ścieżkę
         arm.set_start_state_to_current_state()
-        arm.set_goal_state(pose_stamped_msg=target_pose, pose_link="panda_link8")
+        arm.set_goal_state(pose_stamped_msg=target_pose_stamped, pose_link="panda_link8")
         
         plan_result = arm.plan()
-        if plan_result:
-            trajectory = arm.get_plan_trajectory()
-            moveit.execute(trajectory, blocking=True)
+        if plan_result and plan_result.trajectory:
+            trajectory = plan_result.trajectory
+            moveit.execute(trajectory, controllers=[])
             print(f"✓ Osiągnięto narożnik {i+1}")
             time.sleep(0.5)
         else:

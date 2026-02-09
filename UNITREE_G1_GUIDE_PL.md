@@ -362,7 +362,7 @@ import time
 
 def create_reach_pose(x, y, z):
     """
-    Tworzy pose dla chwytania obiektów.
+    Tworzy PoseStamped dla chwytania obiektów.
     
     W robocie humanoidalnym G1, orientacja chwytaka jest kluczowa.
     Ta funkcja tworzy pose z chwytakiem skierowanym w dół (naturalna
@@ -372,16 +372,22 @@ def create_reach_pose(x, y, z):
         x, y, z: Współrzędne w układzie base robota [metry]
         
     Returns:
-        Pose: Pozycja i orientacja end-effectora
+        PoseStamped: Pozycja i orientacja end-effectora z headerem
     """
-    pose = Pose()
-    pose.position = Point(x=x, y=y, z=z)
+    from geometry_msgs.msg import PoseStamped, Pose, Point, Quaternion
+    from rclpy.clock import Clock
+    
+    pose_stamped = PoseStamped()
+    pose_stamped.header.frame_id = "base_link"
+    pose_stamped.header.stamp = Clock().now().to_msg()
+    
+    pose_stamped.pose.position = Point(x=x, y=y, z=z)
     
     # Quaternion dla orientacji "chwytka w dół"
     # To jest uproszczenie - w rzeczywistości może wymagać dostosowania
-    pose.orientation = Quaternion(x=0.707, y=0.0, z=0.0, w=0.707)
+    pose_stamped.pose.orientation = Quaternion(x=0.707, y=0.0, z=0.0, w=0.707)
     
-    return pose
+    return pose_stamped
 
 def main():
     rclpy.init()
@@ -401,14 +407,14 @@ def main():
     print("  ⏳ Planowanie...")
     plan_result = right_arm.plan()
     
-    if plan_result:
+    if plan_result and plan_result.trajectory:
         print("  ✓ Trajektoria zaplanowana!")
-        trajectory = right_arm.get_plan_trajectory()
+        trajectory = right_arm.trajectory
         print(f"  📊 Długość trajektorii: {len(trajectory.joint_trajectory.points)} punktów")
         
         # Wykonaj ruch
         print("  🏃 Wykonywanie ruchu...")
-        success = moveit.execute(trajectory, blocking=True)
+        success = moveit.execute(trajectory, controllers=[])
         
         if success:
             print("  ✓ Ruch wykonany!")
@@ -436,12 +442,12 @@ def main():
     
     plan_result = right_arm.plan()
     
-    if plan_result:
+    if plan_result and plan_result.trajectory:
         print("  ✓ IK rozwiązana! Trajektoria zaplanowana!")
-        trajectory = right_arm.get_plan_trajectory()
+        trajectory = right_arm.trajectory
         
         print("  🏃 Wykonywanie ruchu...")
-        success = moveit.execute(trajectory, blocking=True)
+        success = moveit.execute(trajectory, controllers=[])
         
         if success:
             print("  ✓ Ramię osiągnęło cel!")
@@ -511,8 +517,8 @@ def plan_dual_arm_motion(moveit):
     right_plan = right_arm.plan()
     
     if left_plan and right_plan:
-        left_traj = left_arm.get_plan_trajectory()
-        right_traj = right_arm.get_plan_trajectory()
+        left_traj = left_arm.trajectory
+        right_traj = right_arm.trajectory
         
         print("✓ Obie trajektorie zaplanowane!")
         print(f"  Lewe ramię: {len(left_traj.joint_trajectory.points)} punktów")
@@ -545,10 +551,10 @@ def main():
         # Opcja A: Wykonaj sekwencyjnie (bezpieczniejsze)
         print("\n  🏃 Wykonywanie sekwencyjne (jedno po drugim)...")
         print("    → Lewe ramię...")
-        moveit.execute(left_traj, blocking=True)
+        moveit.execute(left_traj, controllers=[])
         time.sleep(1)
         print("    → Prawe ramię...")
-        moveit.execute(right_traj, blocking=True)
+        moveit.execute(right_traj, controllers=[])
         print("  ✓ Gotowe!")
         
         # Opcja B: Wykonaj równolegle (wymaga wsparcia kontrolera)
@@ -716,23 +722,25 @@ class G1PickAndPlace:
         print("  → Podejście do obiektu...")
         
         # Pozycja 10cm nad obiektem
-        approach_pose = Pose()
-        approach_pose.position.x = object_x
-        approach_pose.position.y = object_y
-        approach_pose.position.z = object_z + 0.1  # 10cm wyżej
-        approach_pose.orientation.x = 0.707
-        approach_pose.orientation.w = 0.707
+        approach_pose_stamped = PoseStamped()
+        approach_pose_stamped.header.frame_id = "base_link"
+        approach_pose_stamped.header.stamp = self.node.get_clock().now().to_msg()
+        approach_pose_stamped.pose.position.x = object_x
+        approach_pose_stamped.pose.position.y = object_y
+        approach_pose_stamped.pose.position.z = object_z + 0.1  # 10cm wyżej
+        approach_pose_stamped.pose.orientation.x = 0.707
+        approach_pose_stamped.pose.orientation.w = 0.707
         
         self.right_arm.set_start_state_to_current_state()
         self.right_arm.set_goal_state(
-            pose_stamped_msg=approach_pose,
+            pose_stamped_msg=approach_pose_stamped,
             pose_link="r_hand_link"
         )
         
         plan_result = self.right_arm.plan()
-        if plan_result:
-            trajectory = self.right_arm.get_plan_trajectory()
-            self.moveit.execute(trajectory, blocking=True)
+        if plan_result and plan_result.trajectory:
+            trajectory = plan_result.trajectory
+            self.moveit.execute(trajectory, controllers=[])
             print("    ✓ W pozycji podejścia")
             return True
         else:
@@ -762,9 +770,9 @@ class G1PickAndPlace:
         )
         
         plan_result = self.right_arm.plan()
-        if plan_result:
-            trajectory = self.right_arm.get_plan_trajectory()
-            self.moveit.execute(trajectory, blocking=True)
+        if plan_result and plan_result.trajectory:
+            trajectory = self.right_arm.trajectory
+            self.moveit.execute(trajectory, controllers=[])
             
             # Zamknij chwytaka
             time.sleep(0.5)
@@ -805,9 +813,9 @@ class G1PickAndPlace:
         )
         
         plan_result = self.right_arm.plan()
-        if plan_result:
-            trajectory = self.right_arm.get_plan_trajectory()
-            self.moveit.execute(trajectory, blocking=True)
+        if plan_result and plan_result.trajectory:
+            trajectory = self.right_arm.trajectory
+            self.moveit.execute(trajectory, controllers=[])
             
             # Opuść do wysokości docelowej
             place_pose = Pose()
@@ -824,9 +832,9 @@ class G1PickAndPlace:
             )
             
             plan_result = self.right_arm.plan()
-            if plan_result:
-                trajectory = self.right_arm.get_plan_trajectory()
-                self.moveit.execute(trajectory, blocking=True)
+            if plan_result and plan_result.trajectory:
+                trajectory = self.right_arm.trajectory
+                self.moveit.execute(trajectory, controllers=[])
                 
                 # Otwórz chwytaka i odłącz obiekt
                 time.sleep(0.5)
@@ -882,9 +890,9 @@ class G1PickAndPlace:
         self.right_arm.set_start_state_to_current_state()
         self.right_arm.set_goal_state(configuration_name="home")
         plan_result = self.right_arm.plan()
-        if plan_result:
-            trajectory = self.right_arm.get_plan_trajectory()
-            self.moveit.execute(trajectory, blocking=True)
+        if plan_result and plan_result.trajectory:
+            trajectory = self.right_arm.trajectory
+            self.moveit.execute(trajectory, controllers=[])
         
         print("\n✓ Pick-and-Place zakończony sukcesem!")
         print("=" * 60)

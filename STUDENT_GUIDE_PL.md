@@ -320,19 +320,20 @@ class SimpleMotionPlanner(Node):
         """
         self.get_logger().info('Wykonywanie trajektorii...')
         
-        # Pobierz ostatnio zaplanowaną trajektorię
-        trajectory = self.arm.get_plan_trajectory()
+        # Zaplanuj trajektorię na podstawie aktualnie ustawionego celu
+        plan_result = self.arm.plan()
         
-        if trajectory:
-            # Wykonaj trajektorię na prawdziwym robocie
-            success = self.moveit.execute(trajectory, blocking=True)
+        if plan_result and plan_result.trajectory:
+            trajectory = plan_result.trajectory
+            # Wykonaj trajektorię na prawdziwym robocie (lista kontrolerów pusta = domyślne)
+            success = self.moveit.execute(trajectory, controllers=[])
             
             if success:
                 self.get_logger().info('✓ Trajektoria wykonana!')
             else:
                 self.get_logger().error('✗ Wykonanie nie powiodło się!')
         else:
-            self.get_logger().error('Brak trajektorii do wykonania!')
+            self.get_logger().error('Brak poprawnie zaplanowanej trajektorii do wykonania!')
 
 def main():
     """Główna funkcja programu."""
@@ -390,7 +391,7 @@ Pokazuje jak używać pose goals zamiast joint goals.
 """
 
 import rclpy
-from geometry_msgs.msg import Pose, Point, Quaternion
+from geometry_msgs.msg import Pose, Point, Quaternion, PoseStamped
 from moveit.planning import MoveItPy
 
 def create_pose(x, y, z, qx=0.0, qy=0.0, qz=0.0, qw=1.0):
@@ -429,14 +430,18 @@ def main():
     )
     
     # Ustaw cel jako pose goal
-    arm.set_goal_state(pose_stamped_msg=target_pose, pose_link="panda_hand")
+    # UWAGA: set_goal_state wymaga PoseStamped (nie tylko Pose)
+    target_pose_stamped = PoseStamped()
+    target_pose_stamped.header.frame_id = "panda_link0"
+    target_pose_stamped.pose = target_pose
+    arm.set_goal_state(pose_stamped_msg=target_pose_stamped, pose_link="panda_hand")
     
     # Zaplanuj i wykonaj
     plan_result = arm.plan()
-    if plan_result:
+    if plan_result and plan_result.trajectory:
         print("✓ Trajektoria zaplanowana!")
-        trajectory = arm.get_plan_trajectory()
-        moveit.execute(trajectory, blocking=True)
+        trajectory = plan_result.trajectory
+        moveit.execute(trajectory, controllers=[])
         print("✓ Trajektoria wykonana!")
     else:
         print("✗ Nie udało się zaplanować trajektorii")
