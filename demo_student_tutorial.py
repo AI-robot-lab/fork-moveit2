@@ -97,8 +97,18 @@ class StudentDemoNode(Node):
         print("=" * 80 + "\n")
     
     def wait_for_user(self, message="Naciśnij Enter aby kontynuować..."):
-        """Czeka na potwierdzenie użytkownika."""
-        input(f"\n{message}\n")
+        """
+        Czeka na potwierdzenie użytkownika.
+        
+        UWAGA: Ten skrypt wymaga interaktywnego terminala.
+        Nie uruchamiaj go w środowiskach bez stdin (np. niektóre IDE).
+        """
+        try:
+            input(f"\n{message}\n")
+        except EOFError:
+            self.get_logger().error("Błąd: Skrypt wymaga interaktywnego terminala (stdin)!")
+            self.get_logger().error("Uruchom w normalnym terminalu, nie przez redirect.")
+            raise
     
     def demo_1_named_target(self):
         """
@@ -203,23 +213,26 @@ class StudentDemoNode(Node):
         self.wait_for_user("Naciśnij Enter aby zaplanować ruch do pozycji w przestrzeni...")
         
         try:
-            # Krok 1: Utwórz pozę docelową
-            target_pose = Pose()
+            # Krok 1: Utwórz pozę docelową jako PoseStamped
+            # PoseStamped zawiera header z frame_id i timestamp
+            target_pose_stamped = PoseStamped()
+            target_pose_stamped.header.frame_id = "world"
+            target_pose_stamped.header.stamp = self.get_clock().now().to_msg()
             
             # Pozycja: 40cm przed robotem, 10cm w prawo, 50cm w górę
-            target_pose.position = Point(x=0.4, y=0.1, z=0.5)
+            target_pose_stamped.pose.position = Point(x=0.4, y=0.1, z=0.5)
             
             # Orientacja: quaternion dla "chwytaka skierowanego w dół"
             # Ten quaternion reprezentuje obrót o 90° wokół osi X
-            target_pose.orientation = Quaternion(x=0.707, y=0.0, z=0.0, w=0.707)
+            target_pose_stamped.pose.orientation = Quaternion(x=0.707, y=0.0, z=0.0, w=0.707)
             
             self.get_logger().info("1️⃣  Cel zdefiniowany:")
-            self.get_logger().info(f"   📍 Pozycja: x={target_pose.position.x}m, "
-                                 f"y={target_pose.position.y}m, z={target_pose.position.z}m")
-            self.get_logger().info(f"   🔄 Orientacja: quaternion(x={target_pose.orientation.x:.3f}, "
-                                 f"y={target_pose.orientation.y:.3f}, "
-                                 f"z={target_pose.orientation.z:.3f}, "
-                                 f"w={target_pose.orientation.w:.3f})")
+            self.get_logger().info(f"   📍 Pozycja: x={target_pose_stamped.pose.position.x}m, "
+                                 f"y={target_pose_stamped.pose.position.y}m, z={target_pose_stamped.pose.position.z}m")
+            self.get_logger().info(f"   🔄 Orientacja: quaternion(x={target_pose_stamped.pose.orientation.x:.3f}, "
+                                 f"y={target_pose_stamped.pose.orientation.y:.3f}, "
+                                 f"z={target_pose_stamped.pose.orientation.z:.3f}, "
+                                 f"w={target_pose_stamped.pose.orientation.w:.3f})")
             
             # Krok 2: Ustaw stan początkowy i docelowy
             self.arm.set_start_state_to_current_state()
@@ -230,8 +243,9 @@ class StudentDemoNode(Node):
             end_effector_link = "panda_link8"
             
             self.get_logger().info(f"2️⃣  Ustawianie pose goal dla '{end_effector_link}'...")
+            # set_goal_state przyjmuje PoseStamped (nie sam Pose)
             self.arm.set_goal_state(
-                pose_stamped_msg=target_pose,
+                pose_stamped_msg=target_pose_stamped,
                 pose_link=end_effector_link
             )
             

@@ -131,7 +131,7 @@ Planning Scene Monitor zapewnia, że planner zawsze ma aktualne informacje o:
 - MoveIt 2 używa różnych solverów:
   - **KDL** - szybki, numeryczny
   - **TracIK** - bardziej niezawodny
-  - **IKFAST** - bardzo szybki, generowany dla konkretnego robota
+  - **IKFast** - bardzo szybki, generowany dla konkretnego robota
 
 **Przykład problemu IK:**
 ```

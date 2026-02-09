@@ -214,7 +214,7 @@ upper_body:
 **Wybór solvera:**
 - **KDL** - szybki, dobry dla prostych grup (pojedyncze ramię)
 - **TracIK** - wolniejszy, ale bardziej niezawodny dla trudnych pozycji
-- **IKFAST** - najszybszy, ale wymaga wygenerowania dla konkretnego modelu
+- **IKFast** - najszybszy, ale wymaga wygenerowania dla konkretnego modelu
 
 #### 3. Parametry planowania (ompl_planning.yaml)
 ```yaml
