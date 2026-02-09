@@ -14,6 +14,17 @@ The [MoveIt Motion Planning Framework for ROS 2](http://moveit.ai). For the ROS 
 
 See our extensive [Tutorials and Documentation](https://moveit.picknik.ai/).
 
+### 🇵🇱 Polish Educational Resources
+
+Comprehensive Polish-language documentation for students working with humanoid robots:
+- **[Quick Start Guide (SZYBKI_START.md)](SZYBKI_START.md)** - Start here!
+- **[Polish README (README_PL.md)](README_PL.md)** - Overview and introduction
+- **[Student Guide (PRZEWODNIK_STUDENTA.md)](PRZEWODNIK_STUDENTA.md)** - Step-by-step tutorials
+- **[Unitree G1 Integration (UNITREE_G1_INTEGRATION.md)](UNITREE_G1_INTEGRATION.md)** - Humanoid robot integration
+- **[Example Script (moveit_py_example_pl.py)](moveit_py_example_pl.py)** - Annotated Python examples
+
+These resources provide in-depth explanations with Polish comments while keeping technical terms in English, ideal for robotics education.
+
 ## Install
 
 - [Binary Install](https://moveit.ai/install-moveit2/binary/)
