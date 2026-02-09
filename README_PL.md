@@ -29,202 +29,133 @@ MoveIt 2 to kompleksowa platforma, która:
 
 ```
 moveit2/
-├── moveit_core/              # Podstawowe funkcjonalności (kinematyka, planowanie, kolizje)
-├── moveit_ros/               # Integracja z ROS 2 (węzły, topiki, serwisy)
-│   ├── planning/             # Komponenty planowania ruchu
-│   ├── perception/           # Przetwarzanie danych z czujników
-│   └── moveit_servo/         # Sterowanie w czasie rzeczywistym (servoing)
-├── moveit_planners/          # Algorytmy planowania trajektorii
-│   ├── ompl/                 # Open Motion Planning Library
-│   ├── stomp/                # Stochastic Trajectory Optimization
-│   └── pilz/                 # Planowanie przemysłowe (liniowe, kołowe)
-├── moveit_py/                # Biblioteka Python dla MoveIt 2
-├── moveit_setup_assistant/   # Narzędzie konfiguracyjne GUI
-└── moveit_plugins/           # Wtyczki rozszerzeń
+├── moveit_core/              # Podstawowe algorytmy (kinematyka, planowanie, kolizje)
+├── moveit_ros/               # Integracja z ROS 2
+│   ├── moveit_servo/        # Sterowanie w czasie rzeczywistym (Servo)
+│   ├── planning/            # Komponenty planowania ruchu
+│   └── visualization/       # Narzędzia wizualizacji w RViz
+├── moveit_planners/         # Algorytmy planowania (OMPL, STOMP, Pilz)
+├── moveit_py/               # Biblioteka Python do MoveIt 2
+├── moveit_setup_assistant/  # Narzędzie konfiguracji robota
+└── moveit_plugins/          # Wtyczki rozszerzające funkcjonalność
 ```
+
+## Kluczowe koncepcje
+
+### Planning Scene
+**Planning Scene** to wewnętrzna reprezentacja środowiska robota, zawierająca:
+- Model kinematyczny robota (URDF)
+- Aktualne położenie stawów
+- Przeszkody w otoczeniu
+- Dozwolone kolizje
+
+### Move Group
+**Move Group** to zestaw stawów robota, które są sterowane razem jako jedna grupa (np. lewe ramię, prawa ręka). W robocie Unitree G1 mamy kilka grup: ramiona, nogi, tułów.
+
+### Planning Request
+**Planning Request** to żądanie obliczenia trajektorii z punktu A do punktu B, zawierające:
+- Pozycję początkową
+- Pozycję docelową (lub pozę end-effectora)
+- Ograniczenia ruchu
 
 ## Instalacja
 
-### Instalacja binarna (zalecana dla początkujących)
-
+### Instalacja binarna (zalecana dla początkujących):
 ```bash
-# Instalacja MoveIt 2 dla ROS 2 Humble
 sudo apt update
 sudo apt install ros-humble-moveit
 ```
 
-### Kompilacja ze źródeł (dla zaawansowanych)
-
-```bash
-# Utworzenie workspace ROS 2
-mkdir -p ~/ws_moveit2/src
-cd ~/ws_moveit2/src
-
-# Sklonowanie repozytorium
-git clone https://github.com/ros-planning/moveit2.git -b main
-
-# Instalacja zależności
-cd ~/ws_moveit2
-rosdep install -r --from-paths src --ignore-src --rosdistro humble -y
-
-# Kompilacja
-colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release
-```
+### Kompilacja ze źródeł:
+Szczegółowe instrukcje: [Source Build](https://moveit.ai/install-moveit2/source/)
 
 ## Pierwsze kroki
 
-### 1. Uruchomienie prostego przykładu
-
+### 1. Uruchomienie demo
 ```bash
-# Aktywacja środowiska ROS 2
-source /opt/ros/humble/setup.bash
-
-# Jeśli kompilowałeś ze źródeł
-source ~/ws_moveit2/install/setup.bash
-
-# Uruchomienie demonstracyjnej sceny z robotem Panda
+# Uruchom demo z robotem Panda
 ros2 launch moveit2_tutorials demo.launch.py
+
+# Otwórz RViz i zaplanuj ruch używając interaktywnych markerów
 ```
 
-### 2. Podstawowe pojęcia
+### 2. Podstawowy kod Python
+```python
+import rclpy
+from moveit.planning import MoveItPy
 
-#### Planning Scene
-**Co to jest?** Reprezentacja środowiska pracy robota, zawierająca modele przeszkód i kolizji.
+# Inicjalizacja node ROS 2
+rclpy.init()
 
-**Po co?** Umożliwia planowanie bezpiecznych trajektorii, które unikają kolizji.
+# Utworzenie instancji MoveItPy
+moveit = MoveItPy(node_name="moveit_py_demo")
 
-#### Move Group
-**Co to jest?** Zestaw stawów/linków robota, którymi sterujemy jako całością (np. ramię, chwytak).
+# Pobranie planning component dla grupy ramienia
+arm = moveit.get_planning_component("arm")
 
-**Po co?** Pozwala na planowanie skoordynowanych ruchów wielu stawów jednocześnie.
+# Zaplanowanie ruchu do pozycji domowej
+arm.set_start_state_to_current_state()
+arm.set_goal_state(configuration_name="home")
+plan_result = arm.plan()
 
-#### End Effector (Efektor końcowy)
-**Co to jest?** Narzędzie na końcu ramienia robota (np. chwytak, spawarka).
+# Wykonanie ruchu
+if plan_result:
+    robot_trajectory = plan_result.trajectory
+    moveit.execute(robot_trajectory, controllers=[])
+```
 
-**Po co?** Określa punkt, którym chcemy manipulować w przestrzeni roboczej.
-
-#### Joint Space vs Cartesian Space
-- **Joint Space** - przestrzeń kątów stawów (wartości dla każdego silnika)
-- **Cartesian Space** - przestrzeń kartezjańska (pozycja X,Y,Z i orientacja)
-
-**Po co oba?** Robot planuje w Joint Space, ale my często podajemy cele w Cartesian Space.
-
-## Zastosowanie z robotem Unitree G1 EDU
-
-Robot **Unitree G1 EDU** to humanoidalny robot badawczy, który doskonale współpracuje z MoveIt 2. 
-
-### Dlaczego MoveIt 2 dla Unitree G1?
-
-1. **Złożona kinematyka** - humanoid ma wiele stopni swobody, MoveIt 2 automatyzuje skomplikowane obliczenia
-2. **Bezpieczeństwo** - wykrywanie kolizji chroni robota przed samouszkodzeniem
-3. **Planowanie całego ciała** - możliwość koordynacji ruchów ramion, nóg i tułowia
-4. **Symulacja** - testowanie algorytmów przed wdrożeniem na prawdziwym robocie
-
-### Typowe zadania z G1 EDU:
-
-- **Manipulacja obiektami** - podnoszenie, przenoszenie, odkładanie przedmiotów
-- **Interakcja człowiek-robot** - podawanie obiektów, współpraca przy zadaniach
-- **Nawigacja i manipulacja** - połączenie poruszania się z użyciem ramion
-- **Gestykulacja** - wykonywanie wyrażeń niewerbalnych i gestów
-
-## Zasoby dla studentów
+## Przydatne zasoby
 
 ### Dokumentacja
-- **Oficjalne tutoriale**: [https://moveit.picknik.ai/](https://moveit.picknik.ai/)
-- **MoveIt 2 Python**: Zobacz [moveit_py/README.md](moveit_py/README.md)
-- **API Doxygen**: Dokumentacja techniczna klas i funkcji
+- [Oficjalne tutoriale MoveIt 2](https://moveit.picknik.ai/)
+- [Dokumentacja API](https://moveit.picknik.ai/main/api/html/)
+- [Przewodnik migracji z MoveIt 1](./MIGRATION.md)
 
-### Przykładowe projekty
-1. **Pick and Place** - podnoszenie i odkładanie obiektów
-2. **Trajectory Planning** - planowanie gładkich trajektorii
-3. **Collision Avoidance** - unikanie przeszkód dynamicznych
-4. **Visual Servoing** - sterowanie oparte na obrazie z kamery
+### Dla studentów PRz
+- [Przewodnik studenta](./STUDENT_GUIDE_PL.md) - szczegółowy przewodnik krok po kroku
+- [Przewodnik Unitree G1 EDU](./UNITREE_G1_GUIDE_PL.md) - zastosowanie w projekcie z robotem humanoidalnym
+- [Przykłady z komentarzami](./moveit_ros/moveit_servo/demos/) - kod demonstracyjny z polskimi wyjaśnieniami
 
-### Dodatkowe przewodniki
-- **[PRZEWODNIK_STUDENTA.md](PRZEWODNIK_STUDENTA.md)** - szczegółowy przewodnik krok po kroku
-- **[UNITREE_G1_INTEGRATION.md](UNITREE_G1_INTEGRATION.md)** - integracja z robotem Unitree G1 EDU
+### Społeczność
+- [Forum dyskusyjne ROS](https://discourse.ros.org/)
+- [GitHub Issues](https://github.com/ros-planning/moveit2/issues)
+- [Discord MoveIt](https://discord.gg/moveit)
 
-## Kluczowe komponenty
+## Najczęstsze problemy początkujących
 
-### 1. moveit_core
-**Cel:** Podstawowa logika planowania i kinematyki.
+### Problem: Robot nie planuje ruchu
+**Rozwiązanie**: Sprawdź czy:
+- Planning Scene jest załadowany (`planning_scene_monitor`)
+- Robot ma poprawnie skonfigurowane grupy (`move_group`)
+- Żądana pozycja jest osiągalna (w workspace robota)
 
-**Zawiera:**
-- Rozwiązywanie kinematyki odwrotnej (IK) i prostej (FK)
-- Detekcja kolizji
-- Reprezentacja modelu robota
-- Zarządzanie ograniczeniami ruchu
+### Problem: Kolizje w planowaniu
+**Rozwiązanie**: 
+- Dodaj przeszkody do Planning Scene
+- Sprawdź `allowed_collision_matrix` (ACM)
+- Zwiększ `planning_time` dla trudniejszych scenariuszy
 
-### 2. moveit_ros
-**Cel:** Integracja z ekosystemem ROS 2.
+### Problem: Servo nie reaguje na komendy
+**Rozwiązanie**:
+- Sprawdź poprawność konfiguracji `servo_params.yaml`
+- Upewnij się, że `planning_scene_monitor` działa
+- Sprawdź topic'i komunikacji (`ros2 topic list`)
 
-**Zawiera:**
-- Węzeł `move_group` - główny serwer planowania
-- Interfejsy do komunikacji (action servers, services)
-- Monitorowanie sceny (planning scene monitor)
-- Integracja z kontrolerami sprzętowymi
+## Następne kroki
 
-### 3. moveit_planners
-**Cel:** Różne algorytmy planowania trajektorii.
+1. Przeczytaj [Przewodnik studenta](./STUDENT_GUIDE_PL.md)
+2. Zapoznaj się z przykładami w `moveit_ros/moveit_servo/demos/`
+3. Przejdź przez [tutoriale Unitree G1](./UNITREE_G1_GUIDE_PL.md)
+4. Eksperymentuj z kodem - najlepsza nauka przez praktykę!
 
-**Algorytmy:**
-- **OMPL** (Open Motion Planning Library) - próbkowanie przestrzeni konfiguracji
-- **STOMP** - optymalizacja stochastyczna, unika lokalnych minimów
-- **Pilz** - planowanie przemysłowe (proste ruchy liniowe i kołowe)
+## Status kompilacji
 
-### 4. moveit_py
-**Cel:** Pythonowy interfejs do MoveIt 2.
-
-**Zalety:**
-- Prostsze prototypowanie
-- Interaktywne środowisko (Jupyter notebooks)
-- Dostęp do ekosystemu Python (NumPy, OpenCV, ML)
-
-## Status integracji ciągłej
-
-[![CI (Rolling and Humble)](https://github.com/ros-planning/moveit2/actions/workflows/ci.yaml/badge.svg?branch=main)](https://github.com/ros-planning/moveit2/actions/workflows/ci.yaml?query=branch%3Amain)
-
-## Wkład w projekt
-
-Jesteś studentem i chciałbyś przyczynić się do rozwoju MoveIt 2? 
-
-- **Zgłaszanie błędów**: [GitHub Issues](https://github.com/ros-planning/moveit2/issues)
-- **Propozycje ulepszeń**: [GitHub Discussions](https://github.com/ros-planning/moveit2/discussions)
-- **Pull requesty**: Zobacz [CONTRIBUTING.md](CONTRIBUTING.md)
-
-## Wsparcie i pomoc
-
-### Gdzie szukać pomocy?
-
-1. **Discord MoveIt**: [Dołącz do serwera](https://discord.gg/RrySut8)
-2. **ROS Answers**: [https://answers.ros.org](https://answers.ros.org)
-3. **GitHub Discussions**: Zadaj pytanie w tym repozytorium
-
-### Często spotykane problemy
-
-**Problem:** "Package 'moveit_ros' not found"
-**Rozwiązanie:** Upewnij się, że sourced środowisko ROS 2:
-```bash
-source /opt/ros/humble/setup.bash
-```
-
-**Problem:** Planer nie znajduje rozwiązania
-**Rozwiązanie:** Sprawdź czy:
-- Cel jest osiągalny (w workspace robota)
-- Nie ma kolizji na starcie lub celu
-- Timeout planowania jest wystarczający
+Wszystkie komponenty MoveIt 2 są regularnie testowane i kompilowane dla dystrybucji ROS 2 Humble, Iron i Rolling. Status kompilacji dostępny w [głównym README](./README.md).
 
 ## Licencja
 
-MoveIt 2 jest opublikowany na licencji BSD - zobacz [LICENSE.txt](LICENSE.txt).
+MoveIt 2 jest oprogramowaniem open-source na licencji BSD 3-Clause. Zobacz [LICENSE.txt](./LICENSE.txt) dla szczegółów.
 
 ## Podziękowania
 
-Ten projekt jest rozwijany przez społeczność ROS na całym świecie. Specjalne podziękowania dla:
-- **PickNik Robotics** - główny rozwój i utrzymanie
-- **Projektu ROSIN** - wsparcie portowania do ROS 2
-- **Wszystkich kontrybutorów** - za nieustanny wkład w rozwój
-
----
-
-**Uwaga:** Ten dokument został stworzony jako pomoc edukacyjna dla polskojęzycznych studentów. Wszystkie nazwy techniczne (klasy, funkcje, pakiety) pozostają w oryginalnej formie angielskiej, zgodnie ze standardami programowania.
+Ten przewodnik został przygotowany dla studentów Politechniki Rzeszowskiej w ramach projektu edukacyjnego z robotem humanoidalnym Unitree G1 EDU. Dziękujemy społeczności MoveIt za stworzenie tak potężnego narzędzia edukacyjnego.
