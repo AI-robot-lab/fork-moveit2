@@ -1,27 +1,29 @@
-# MoveIt 2 - Przewodnik dla studentów Politechniki Rzeszowskiej
+# MoveIt 2 - Framework do Planowania Ruchu Robotów
 
 <img src="https://moveit.ai/assets/logo/moveit_logo-black.png" alt="MoveIt Logo" width="200"/>
 
-## Czym jest MoveIt 2?
+## O projekcie MoveIt 2
 
-**MoveIt 2** to zaawansowana, otwartoźródłowa platforma do planowania ruchu i manipulacji robotami, zbudowana na bazie systemu **ROS 2** (Robot Operating System 2). Jest to najczęściej wykorzystywane oprogramowanie do sterowania ramionami robotów w środowisku akademickim i przemysłowym.
+**MoveIt 2** to zaawansowany framework open-source do planowania ruchu robotów w środowisku ROS 2 (Robot Operating System 2). Jest to potężne narzędzie umożliwiające programowanie i sterowanie manipulatorami robotycznymi oraz robotami mobilnymi.
 
-### Główne funkcjonalności:
+### Czym jest MoveIt 2?
 
-- **Planowanie trajektorii** - automatyczne wyznaczanie bezkolizyjnych ścieżek ruchu robota
-- **Kinematyka** - rozwiązywanie kinematyki prostej i odwrotnej
-- **Wykrywanie kolizji** - zapobieganie kolizjom z przeszkodami i samym sobą
-- **Sterowanie w czasie rzeczywistym** - precyzyjne kontrolowanie ruchu robota
-- **Wizualizacja 3D** - interaktywne środowisko do planowania i testowania w RViz
+MoveIt 2 to kompleksowa platforma, która:
+- **Planuje trajektorię ruchu** - oblicza bezpieczne ścieżki przemieszczania się efektora końcowego robota
+- **Wykrywa kolizje** - zapobiega zderzeniom z przeszkodami w środowisku pracy
+- **Rozwiązuje kinematykę** - przekształca docelowe pozycje w przestrzeni na kąty stawów robota
+- **Integruje czujniki** - wykorzystuje kamery i skanery 3D do percepcji otoczenia
+- **Steruje robotami** - komunikuje się z kontrolerami sprzętowymi robotów
 
 ## Dlaczego używamy MoveIt 2?
 
-W projektach z robotem humanoidalnym **Unitree G1 EDU** MoveIt 2 jest kluczowym narzędziem, ponieważ:
+### Główne zalety:
 
-1. **Bezpieczeństwo** - automatyczne wykrywanie kolizji chroni robota i otoczenie
-2. **Abstrakcja złożoności** - nie musisz ręcznie liczyć kinematyki dla 23+ stopni swobody
-3. **Standaryzacja** - kompatybilność z ekosystemem ROS 2 i wieloma narzędziami
-4. **Społeczność** - wsparcie globalnej społeczności robotyków
+1. **Łatwość użycia** - wysokopoziomowe API ukrywa złożoność algorytmów planowania
+2. **Modularność** - można wybierać różne algorytmy planowania (OMPL, STOMP, Pilz)
+3. **Wizualizacja** - integracja z RViz pozwala na podgląd planowanych ruchów
+4. **Społeczność** - aktywna społeczność ROS i bogata dokumentacja
+5. **Kompatybilność** - działa z wieloma modelami robotów przemysłowych i badawczych
 
 ## Struktura repozytorium
 
